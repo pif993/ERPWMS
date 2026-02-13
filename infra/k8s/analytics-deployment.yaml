@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: erpwms-analytics}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: erpwms-analytics}}
+  template:
+    metadata: {labels: {app: erpwms-analytics}}
+    spec:
+      containers:
+      - name: analytics
+        image: erpwms-analytics:latest
+        ports: [{containerPort: 8090}]
+        envFrom: [{configMapRef: {name: erpwms-config}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: erpwms-analytics}
+spec:
+  selector: {app: erpwms-analytics}
+  ports: [{port: 8090, targetPort: 8090}]

@@ -1,0 +1,1 @@
+{{ define "stock.html" }}<!doctype html><html><body><h1>Stock</h1><form hx-get="/api/stock/balances" hx-target="#rows"><input name="q" placeholder="search"><button>Filter</button></form><div id="rows"></div></body></html>{{ end }}

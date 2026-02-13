@@ -1,0 +1,2 @@
+-- Placeholder for RLS multi-tenant policies.
+-- ALTER TABLE ... ENABLE ROW LEVEL SECURITY;
