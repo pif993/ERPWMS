@@ -1,4 +1,4 @@
-.PHONY: dev down logs migrate-up migrate-down migrate-status seed gen-sqlc test-go lint-go sec-go test-py lint-py sec-py security sbom fmt
+.PHONY: dev down logs migrate-up gen-sqlc seed test-go lint-go sec-go test-py lint-py sec-py fmt
 
 dev:
 	docker compose -f infra/docker-compose.yml up -d --build
@@ -9,26 +9,20 @@ down:
 logs:
 	docker compose -f infra/docker-compose.yml logs -f
 
+gen-sqlc:
+	cd backend-go && go run github.com/sqlc-dev/sqlc/cmd/sqlc@latest generate
+
 migrate-up:
-	cd backend-go && go run github.com/pressly/goose/v3/cmd/goose@latest -dir internal/db/migrations postgres "$$DATABASE_URL" up
-
-migrate-down:
-	cd backend-go && go run github.com/pressly/goose/v3/cmd/goose@latest -dir internal/db/migrations postgres "$$DATABASE_URL" down
-
-migrate-status:
-	cd backend-go && go run github.com/pressly/goose/v3/cmd/goose@latest -dir internal/db/migrations postgres "$$DATABASE_URL" status
+	cd backend-go && go run github.com/pressly/goose/v3/cmd/goose@latest -dir internal/db/migrations postgres "$$DB_URL" up
 
 seed:
-	@echo "seed placeholder: create admin/roles/permissions"
-
-gen-sqlc:
-	cd backend-go && go run github.com/sqlc-dev/sqlc/cmd/sqlc@latest generate -f internal/db/sqlc/sqlc.yaml
+	cd backend-go && go run ./cmd/seed
 
 test-go:
 	cd backend-go && go test ./...
 
 lint-go:
-	cd backend-go && go vet ./...
+	cd backend-go && gofmt -w . && go vet ./...
 
 sec-go:
 	cd backend-go && go run github.com/securego/gosec/v2/cmd/gosec@latest ./...
@@ -42,11 +36,6 @@ lint-py:
 sec-py:
 	cd python-analytics && python -m bandit -r app -x app/test_main.py
 
-security: sec-go sec-py
-
-sbom:
-	@echo "SBOM placeholder - integrate CycloneDX in CI"
-
 fmt:
-	cd backend-go && go fmt ./...
+	cd backend-go && gofmt -w .
 	cd python-analytics && python -m ruff format app

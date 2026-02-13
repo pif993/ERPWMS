@@ -1,22 +1,30 @@
-# ERPWMS Monorepo
+# ERPWMS
 
-Production-grade ERP+WMS monorepo scaffold with:
-- **Go backend** (Gin API + worker, modular monolith ready for extraction)
-- **Go SSR portal** (templates + HTMX)
-- **Python analytics** (FastAPI, read-only DB access)
-- **Infra** (PostgreSQL, Redis, NATS, Caddy, Docker Compose, K8s/Helm scaffolding)
+Milestone 1 baseline funzionante (API Go + Worker + Analytics Python) con focus su sicurezza e affidabilità:
+- Auth reale (users DB, Argon2id, refresh session hash-only)
+- RBAC reale da DB (permissions/roles)
+- Stock move transazionale con idempotency key + outbox
+- Worker outbox robusto (`FOR UPDATE SKIP LOCKED`, retry/backoff)
+- Portale SSR minimo (`/login`, `/stock`)
 
-## Quick start
-1. Copy `infra/.env.example` to `infra/.env` and set secure values.
-2. Run `make dev`.
-3. Run `make gen-sqlc migrate-up seed`.
-4. Open `http://localhost:8080`.
+## Avvio rapido
+1. Copia `infra/.env.example` in `infra/.env` e imposta valori sicuri.
+2. Avvia stack: `docker compose -f infra/docker-compose.yml up -d --build`
+3. Migrazioni: `make migrate-up`
+4. Genera sqlc: `make gen-sqlc`
+5. Seed admin: `make seed`
 
-## Security posture
-- Deny-by-default permissions and restrictive CORS.
-- Argon2id password hashing and envelope field encryption.
-- JWT key rotation support (`CURRENT` + `PREVIOUS`).
-- Append-only audit and stock ledgers with DB triggers.
-- Structured JSON logging with PII redaction.
+## Endpoint principali
+- `GET /health`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
+- `GET /api/stock/balances`
+- `POST /api/stock/moves` (header `Idempotency-Key` obbligatorio)
 
-See `docs/` for architecture, runbooks, and security details.
+## Sicurezza
+- CORS allowlist (niente wildcard in prod)
+- secure headers + request_id
+- redaction header sensibili
+- append-only per `audit_log` e `stock_ledger`
+- outbox con colonne immutabili eccetto stato invio/retry

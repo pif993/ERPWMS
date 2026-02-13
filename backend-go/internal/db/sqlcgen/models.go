@@ -9,48 +9,36 @@ import (
 )
 
 type AuditLog struct {
-	ID            int64
-	Ts            pgtype.Timestamptz
-	ActorUserID   pgtype.UUID
-	ActorType     string
-	Action        string
-	Resource      string
-	ResourceID    pgtype.Text
-	Status        string
-	IpHash        pgtype.Text
-	UaHash        pgtype.Text
-	RequestID     pgtype.Text
-	TraceID       pgtype.Text
-	MetadataJsonb []byte
-}
-
-type Company struct {
-	ID        pgtype.UUID
-	Name      string
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
+	ID          pgtype.UUID
+	Ts          pgtype.Timestamptz
+	ActorUserID pgtype.UUID
+	ActorType   string
+	Action      string
+	Resource    string
+	ResourceID  pgtype.Text
+	Status      string
+	IpHash      pgtype.Text
+	UaHash      pgtype.Text
+	RequestID   pgtype.Text
+	TraceID     pgtype.Text
+	Metadata    []byte
 }
 
 type IdempotencyKey struct {
-	ID           int64
-	IdemKey      string
+	Key          string
 	Endpoint     string
-	Actor        string
+	ActorUserID  pgtype.UUID
 	RequestHash  string
-	ResponseHash pgtype.Text
 	ResponseJson []byte
 	CreatedAt    pgtype.Timestamptz
 }
 
 type Item struct {
-	ID         pgtype.UUID
-	Sku        string
-	Name       string
-	Barcode    pgtype.Text
-	Uom        string
-	AttrsJsonb []byte
-	CreatedAt  pgtype.Timestamptz
-	UpdatedAt  pgtype.Timestamptz
+	ID      pgtype.UUID
+	Sku     string
+	Name    string
+	Barcode pgtype.Text
+	Uom     string
 }
 
 type Location struct {
@@ -59,17 +47,16 @@ type Location struct {
 	Code        string
 	Type        string
 	Path        pgtype.Text
-	IsPickFace  bool
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
 }
 
 type OutboxEvent struct {
-	ID        int64
-	Subject   string
+	ID        pgtype.UUID
+	Topic     string
 	Payload   []byte
 	CreatedAt pgtype.Timestamptz
 	SentAt    pgtype.Timestamptz
+	Attempts  int32
+	LastError pgtype.Text
 }
 
 type Permission struct {
@@ -78,14 +65,14 @@ type Permission struct {
 }
 
 type RefreshSession struct {
-	ID               pgtype.UUID
-	UserID           pgtype.UUID
-	RefreshTokenHash string
-	UaHash           pgtype.Text
-	IpHash           pgtype.Text
-	ExpiresAt        pgtype.Timestamptz
-	RevokedAt        pgtype.Timestamptz
-	CreatedAt        pgtype.Timestamptz
+	ID          pgtype.UUID
+	UserID      pgtype.UUID
+	RefreshHash string
+	UaHash      pgtype.Text
+	IpHash      pgtype.Text
+	ExpiresAt   pgtype.Timestamptz
+	RevokedAt   pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
 }
 
 type Role struct {
@@ -99,37 +86,7 @@ type RolePermission struct {
 	PermissionID pgtype.UUID
 }
 
-type SalesOrder struct {
-	ID           pgtype.UUID
-	Status       string
-	CustomerName string
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-}
-
-type SalesOrderLine struct {
-	ID           pgtype.UUID
-	OrderID      pgtype.UUID
-	ItemID       pgtype.UUID
-	Qty          pgtype.Numeric
-	AllocatedQty pgtype.Numeric
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-}
-
-type Shipment struct {
-	ID        pgtype.UUID
-	OrderID   pgtype.UUID
-	Status    string
-	Carrier   pgtype.Text
-	Tracking  pgtype.Text
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-}
-
 type StockBalance struct {
-	ID           int64
 	ItemID       pgtype.UUID
 	LocationID   pgtype.UUID
 	QtyOnHand    pgtype.Numeric
@@ -138,59 +95,29 @@ type StockBalance struct {
 }
 
 type StockLedger struct {
-	ID             int64
 	MoveID         pgtype.UUID
 	Ts             pgtype.Timestamptz
 	ItemID         pgtype.UUID
 	Qty            pgtype.Numeric
-	Uom            string
 	FromLocationID pgtype.UUID
 	ToLocationID   pgtype.UUID
 	ReasonCode     string
 	RefType        pgtype.Text
 	RefID          pgtype.Text
 	ActorUserID    pgtype.UUID
-	RequestID      string
-}
-
-type StockReservation struct {
-	ID         pgtype.UUID
-	OrderID    pgtype.UUID
-	LineID     pgtype.UUID
-	ItemID     pgtype.UUID
-	LocationID pgtype.UUID
-	Qty        pgtype.Numeric
-	Status     string
-	CreatedAt  pgtype.Timestamptz
-}
-
-type Task struct {
-	ID           pgtype.UUID
-	Type         string
-	Status       string
-	Priority     int32
-	AssignedTo   pgtype.UUID
-	PayloadJsonb []byte
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-}
-
-type TaskEvent struct {
-	ID           int64
-	TaskID       pgtype.UUID
-	EventType    string
-	PayloadJsonb []byte
-	Ts           pgtype.Timestamptz
+	RequestID      pgtype.Text
 }
 
 type User struct {
-	ID             pgtype.UUID
-	EmailEncrypted []byte
-	EmailHash      string
-	PasswordHash   string
-	Status         string
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
+	ID           pgtype.UUID
+	EmailHash    string
+	EmailEnc     string
+	EmailNonce   string
+	EmailKeyID   string
+	PasswordHash string
+	Status       string
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
 }
 
 type UserRole struct {
@@ -199,10 +126,7 @@ type UserRole struct {
 }
 
 type Warehouse struct {
-	ID        pgtype.UUID
-	CompanyID pgtype.UUID
-	Code      string
-	Name      string
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
+	ID   pgtype.UUID
+	Code string
+	Name string
 }

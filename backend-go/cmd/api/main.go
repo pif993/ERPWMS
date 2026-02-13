@@ -2,14 +2,21 @@ package main
 
 import (
 	"context"
+	"log/slog"
+	"os"
 	"time"
 
+	"erpwms/backend-go/internal/common/auth"
 	"erpwms/backend-go/internal/common/config"
+	"erpwms/backend-go/internal/common/crypto"
 	"erpwms/backend-go/internal/common/middleware"
-	"erpwms/backend-go/internal/common/rbac"
+	sqlc "erpwms/backend-go/internal/db/sqlcgen"
+	adminhttp "erpwms/backend-go/internal/modules/admin/http"
+	adminsvc "erpwms/backend-go/internal/modules/admin/service"
+	stockhttp "erpwms/backend-go/internal/modules/wms_stock/http"
+	stocksvc "erpwms/backend-go/internal/modules/wms_stock/service"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nats-io/nats.go"
 	redis "github.com/redis/go-redis/v9"
@@ -20,19 +27,24 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
 	db, err := pgxpool.New(context.Background(), cfg.DBURL)
 	if err != nil {
 		panic(err)
 	}
 	defer db.Close()
-	rdb := redis.NewClient(&redis.Options{Addr: "redis:6379"})
+	q := sqlc.New(db)
+
+	rdb := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 	nc, _ := nats.Connect(cfg.NATSURL)
+	jwtMgr := auth.JWTManager{Issuer: cfg.JWTIssuer, Audience: cfg.JWTAudience, Current: []byte(cfg.JWTCurrent), Previous: []byte(cfg.JWTPrevious)}
+	authSvc := adminsvc.AuthService{Queries: q, JWT: jwtMgr, SearchPepper: cfg.SearchPepper, AuditPepper: cfg.AuditPepper, Argon: crypto.DefaultArgon2Params()}
+	stockSvc := stocksvc.StockService{DB: db, Queries: q}
 
 	r := gin.New()
 	r.LoadHTMLGlob("web/templates/**/*.html")
-	r.Use(gin.Recovery())
-	r.Use(func(c *gin.Context) { c.Writer.Header().Set("X-Content-Type-Options", "nosniff"); c.Next() })
-	r.Use(func(c *gin.Context) { c.Set("permissions", []string{"wms.stock.read", "wms.stock.move"}); c.Next() })
+	r.Use(gin.Recovery(), middleware.RequestID(), middleware.SecurityHeaders(), middleware.CORS(cfg.CorsOrigins), middleware.RateLimit(cfg.RateLimitAPI))
 
 	r.GET("/health", func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c, 2*time.Second)
@@ -44,34 +56,27 @@ func main() {
 			c.JSON(200, gin.H{"status": "ok"})
 			return
 		}
+		logger.Error("health degraded", "db", dberr, "redis", rerr, "nats_ok", nok)
 		c.JSON(503, gin.H{"status": "degraded"})
 	})
-	r.GET("/login", func(c *gin.Context) { c.HTML(200, "pages/login.html", gin.H{}) })
-	r.POST("/login", func(c *gin.Context) { c.Redirect(302, "/") })
-	r.GET("/", func(c *gin.Context) { c.HTML(200, "pages/dashboard.html", gin.H{"Title": "Dashboard"}) })
-	r.GET("/stock", func(c *gin.Context) { c.HTML(200, "pages/stock.html", gin.H{"Title": "Stock"}) })
 
-	r.POST("/api/auth/login", func(c *gin.Context) {
-		tok := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "user-1", "exp": time.Now().Add(15 * time.Minute).Unix(), "iss": cfg.JWTIssuer, "aud": cfg.JWTAudience})
-		s, _ := tok.SignedString([]byte(cfg.JWTKeyCurrent))
-		c.JSON(200, gin.H{"access_token": s, "refresh_token": "placeholder"})
-	})
-	r.POST("/api/auth/refresh", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
-	r.POST("/api/auth/logout", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
-	r.GET("/api/stock/balances", func(c *gin.Context) { c.JSON(200, gin.H{"items": []any{}}) })
-	r.POST("/api/stock/moves", rbac.RequirePermission("wms.stock.move"), func(c *gin.Context) {
-		k := c.GetHeader("Idempotency-Key")
-		if k == "" {
-			c.JSON(400, gin.H{"error": "missing Idempotency-Key"})
-			return
-		}
-		h := middleware.HashPayload(k)
-		_, _ = db.Exec(c, "INSERT INTO audit_log(actor_type,action,resource,status,request_id) VALUES('user','stock.move','stock_ledger','ok',$1)", h)
-		_, _ = db.Exec(c, "INSERT INTO outbox_events(subject,payload) VALUES('stock.moved', $1::jsonb)", `{"idempotency":"`+h+`"}`)
-		c.JSON(200, gin.H{"status": "moved", "idempotency_hash": h})
-	})
-	r.POST("/api/orders", func(c *gin.Context) { c.JSON(201, gin.H{"status": "created"}) })
-	r.POST("/api/orders/:id/allocate", func(c *gin.Context) { c.JSON(200, gin.H{"status": "allocated"}) })
+	ah := adminhttp.AuthHandlers{Service: authSvc, CookieSecure: cfg.CookieSecure}
+	r.GET("/login", func(c *gin.Context) { c.HTML(200, "pages/login.html", nil) })
+	r.POST("/login", ah.Login)
+	r.GET("/stock", func(c *gin.Context) { c.HTML(200, "pages/stock.html", nil) })
 
-	r.Run(cfg.HTTPAddr)
+	api := r.Group("/api")
+	api.POST("/auth/login", ah.Login)
+	api.POST("/auth/refresh", ah.Refresh)
+	api.POST("/auth/logout", ah.Logout)
+
+	authed := api.Group("/")
+	authed.Use(middleware.Authn(jwtMgr, q))
+	sh := stockhttp.StockHandlers{Queries: q, Service: stockSvc}
+	authed.GET("stock/balances", middleware.RequirePermission("wms.stock.read"), sh.ListBalances)
+	authed.POST("stock/moves", middleware.RequirePermission("wms.stock.move"), sh.Move)
+
+	if err := r.Run(cfg.HTTPAddr); err != nil {
+		panic(err)
+	}
 }

@@ -1,9 +1,11 @@
 package pii
 
-import "regexp"
+import "strings"
 
-var emailRe = regexp.MustCompile(`([a-zA-Z0-9._%+-]{2})[a-zA-Z0-9._%+-]*(@.*)`)
-
-func MaskEmail(v string) string {
-	return emailRe.ReplaceAllString(v, "$1***$2")
+func RedactHeader(k, v string) string {
+	lk := strings.ToLower(k)
+	if lk == "authorization" || lk == "cookie" || lk == "set-cookie" || strings.Contains(lk, "token") {
+		return "[REDACTED]"
+	}
+	return v
 }

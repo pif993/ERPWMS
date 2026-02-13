@@ -1,24 +1,22 @@
 # Security Operations
 
-## Controls
-- Argon2id for passwords.
-- AES-256-GCM envelope encryption for sensitive fields.
-- JWT + field encryption key rotation (`current` + `previous`).
-- CSRF, CORS allow-list, secure headers, rate limiting.
-- Append-only triggers on audit and ledger tables.
+## Implementato in M1
+- Password hashing con Argon2id.
+- Field-level encryption AES-256-GCM (`CURRENT` + `PREVIOUS` key, lazy rotate).
+- Email hash per lookup (`SEARCH_PEPPER`) e hash audit per IP/UA (`AUDIT_PEPPER`).
+- JWT validation con key corrente + precedente.
+- Secure headers + CORS restrittivo + request id.
+- Ledger/audit append-only via trigger DB.
+- Outbox aggiornabile solo su `sent_at`, `attempts`, `last_error`.
 
-## TLS/mTLS
-- Public TLS terminated at Caddy.
-- Optional internal mTLS (API <-> analytics) via cert path env vars.
+## Rotazione chiavi
+- JWT: impostare `JWT_SIGNING_KEY_CURRENT` e mantenere la precedente in `JWT_SIGNING_KEY_PREVIOUS` durante la finestra di rollout.
+- Field encryption: impostare `FIELD_ENC_MASTER_KEY_CURRENT` + `FIELD_ENC_MASTER_KEY_PREVIOUS` e usare `RotateIfNeeded` in read-path.
 
-## Network policy
-K8s baseline:
-- deny-all ingress/egress
-- allow ingress from ingress controller to API/analytics
-- allow API/worker egress to Postgres/Redis/NATS
-- allow analytics egress only to Postgres read-only service
+## Logging e privacy
+- Non loggare Authorization/Cookie/token in chiaro.
+- Salvare in audit solo hash IP/UA.
 
 ## Container hardening
-- Run as non-root user.
-- Prefer read-only rootfs (enabled in K8s manifests).
-- Drop Linux capabilities in compose/k8s where possible.
+- immagini con utente non-root.
+- in K8s abilitare readOnlyRootFilesystem e drop capabilities.
