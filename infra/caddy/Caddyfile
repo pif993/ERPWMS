@@ -1,0 +1,18 @@
+:80 {
+  encode gzip
+  header {
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    Permissions-Policy "geolocation=(),camera=(),microphone=()"
+  }
+
+  handle /analytics/* {
+    uri strip_prefix /analytics
+    reverse_proxy python-analytics:8090
+  }
+
+  handle {
+    reverse_proxy backend-api:8080
+  }
+}

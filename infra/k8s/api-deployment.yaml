@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: erpwms-api}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: erpwms-api}}
+  template:
+    metadata: {labels: {app: erpwms-api}}
+    spec:
+      securityContext: {runAsNonRoot: true}
+      containers:
+      - name: api
+        image: erpwms-api:latest
+        ports: [{containerPort: 8080}]
+        envFrom: [{configMapRef: {name: erpwms-config}}]
+        volumeMounts: [{name: tmp, mountPath: /tmp}]
+      volumes: [{name: tmp, emptyDir: {}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: erpwms-api}
+spec:
+  selector: {app: erpwms-api}
+  ports: [{port: 8080, targetPort: 8080}]

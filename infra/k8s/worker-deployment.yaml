@@ -1,0 +1,14 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: erpwms-worker}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: erpwms-worker}}
+  template:
+    metadata: {labels: {app: erpwms-worker}}
+    spec:
+      containers:
+      - name: worker
+        image: erpwms-api:latest
+        command: ["/app/worker"]
+        envFrom: [{configMapRef: {name: erpwms-config}}]
