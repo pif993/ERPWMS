@@ -1,0 +1,24 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.23']
+        python-version: ['3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: {go-version: ${{ matrix.go-version }}}
+      - uses: actions/setup-python@v5
+        with: {python-version: ${{ matrix.python-version }}}
+      - run: cd backend-go && go mod tidy
+      - run: pip install -r python-analytics/requirements.txt
+      - run: make lint-go test-go sec-go
+      - run: make lint-py test-py sec-py
+      - run: make sbom > sbom.txt
+      - uses: actions/upload-artifact@v4
+        with: {name: sbom, path: sbom.txt}
+      - run: |
+          if command -v gitleaks; then gitleaks detect --source .; else echo "gitleaks unavailable"; fi

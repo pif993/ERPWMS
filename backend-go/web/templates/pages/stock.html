@@ -1,0 +1,13 @@
+{{ define "pages/stock.html" }}
+<!doctype html>
+<html><body>
+<h1>Stock balances</h1>
+<form id="filters" hx-get="/api/stock/balances" hx-target="#result" hx-trigger="submit">
+  <input name="q" placeholder="SKU or name">
+  <input name="warehouse" placeholder="Warehouse">
+  <input name="location" placeholder="Location">
+  <button type="submit">Filter</button>
+</form>
+<pre id="result"></pre>
+</body></html>
+{{ end }}
