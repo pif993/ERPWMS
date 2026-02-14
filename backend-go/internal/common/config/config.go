@@ -35,18 +35,49 @@ func Load() (Config, error) {
 	env := get("ENV", "dev")
 	cookieSecure := getBool("COOKIE_SECURE", env == "prod")
 	cors := strings.Split(get("CORS_ALLOWED_ORIGINS", "http://localhost:8080"), ",")
+
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		// Back-compat: REDIS_URL=redis://host:port/0
+		if ru := os.Getenv("REDIS_URL"); strings.HasPrefix(ru, "redis://") {
+			ru = strings.TrimPrefix(ru, "redis://")
+			redisAddr = strings.SplitN(ru, "/", 2)[0]
+		}
+	}
+	if redisAddr == "" {
+		redisAddr = "redis:6379"
+	}
+
+	searchPepper := os.Getenv("SEARCH_PEPPER")
+	if searchPepper == "" {
+		// Back-compat
+		searchPepper = os.Getenv("SEARCH_KEY")
+	}
+	auditPepper := os.Getenv("AUDIT_PEPPER")
+	if auditPepper == "" {
+		// Back-compat
+		auditPepper = os.Getenv("CSRF_AUTH_KEY")
+	}
+
 	cfg := Config{
-		Env:                  env,
-		HTTPAddr:             get("HTTP_ADDR", ":8080"),
-		DBURL:                get("DB_URL", fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", get("APP_DB_USER", "erp_app"), get("APP_DB_PASSWORD", "change-me-app"), get("POSTGRES_HOST", "localhost"), get("POSTGRES_PORT", "5432"), get("POSTGRES_DB", "erpwms"))),
-		RedisAddr:            get("REDIS_ADDR", "redis:6379"),
+		Env:      env,
+		HTTPAddr: get("HTTP_ADDR", ":8080"),
+		DBURL: get("DB_URL", fmt.Sprintf(
+			"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			get("APP_DB_USER", "erp_app"),
+			get("APP_DB_PASSWORD", "change-me-app"),
+			get("POSTGRES_HOST", "localhost"),
+			get("POSTGRES_PORT", "5432"),
+			get("POSTGRES_DB", "erpwms"),
+		)),
+		RedisAddr:            redisAddr,
 		NATSURL:              get("NATS_URL", "nats://nats:4222"),
 		JWTIssuer:            get("JWT_ISSUER", "erpwms"),
 		JWTAudience:          get("JWT_AUDIENCE", "erpwms-users"),
 		JWTCurrent:           os.Getenv("JWT_SIGNING_KEY_CURRENT"),
 		JWTPrevious:          os.Getenv("JWT_SIGNING_KEY_PREVIOUS"),
-		SearchPepper:         os.Getenv("SEARCH_PEPPER"),
-		AuditPepper:          os.Getenv("AUDIT_PEPPER"),
+		SearchPepper:         searchPepper,
+		AuditPepper:          auditPepper,
 		FieldEncCurrentB64:   os.Getenv("FIELD_ENC_MASTER_KEY_CURRENT"),
 		FieldEncPreviousB64:  os.Getenv("FIELD_ENC_MASTER_KEY_PREVIOUS"),
 		FieldEncCurrentKeyID: get("FIELD_ENC_KEY_ID_CURRENT", "v1"),
@@ -58,6 +89,7 @@ func Load() (Config, error) {
 		AutotestEnabled:      getBool("AUTOTEST_ENABLED", false),
 		AutotestToken:        os.Getenv("AUTOTEST_TOKEN"),
 	}
+
 	if cfg.Env == "prod" {
 		if !cfg.CookieSecure {
 			return cfg, fmt.Errorf("COOKIE_SECURE must be true in prod")
@@ -80,6 +112,7 @@ func get(k, d string) string {
 	}
 	return d
 }
+
 func getInt(k string, d int) int {
 	v := os.Getenv(k)
 	if v == "" {
@@ -91,6 +124,7 @@ func getInt(k string, d int) int {
 	}
 	return n
 }
+
 func getBool(k string, d bool) bool {
 	v := strings.ToLower(os.Getenv(k))
 	if v == "true" || v == "1" {
