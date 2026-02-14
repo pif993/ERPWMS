@@ -1,13 +1,33 @@
 {{ define "pages/stock.html" }}
 <!doctype html>
-<html><body>
+<html>
+<body>
 <h1>Stock balances</h1>
-<form id="filters" hx-get="/api/stock/balances" hx-target="#result" hx-trigger="submit">
+<form method="get" action="/stock">
   <input name="q" placeholder="SKU or name">
   <input name="warehouse" placeholder="Warehouse">
   <input name="location" placeholder="Location">
   <button type="submit">Filter</button>
 </form>
-<pre id="result"></pre>
-</body></html>
+<table border="1" cellpadding="4" cellspacing="0">
+  <thead>
+    <tr><th>SKU</th><th>Item</th><th>Warehouse</th><th>Location</th><th>On hand</th><th>Allocated</th></tr>
+  </thead>
+  <tbody>
+  {{ range .Rows }}
+    <tr>
+      <td>{{ .Sku }}</td>
+      <td>{{ .ItemName }}</td>
+      <td>{{ .WarehouseCode }}</td>
+      <td>{{ .LocationCode }}</td>
+      <td>{{ .QtyOnHand }}</td>
+      <td>{{ .QtyAllocated }}</td>
+    </tr>
+  {{ else }}
+    <tr><td colspan="6">No rows</td></tr>
+  {{ end }}
+  </tbody>
+</table>
+</body>
+</html>
 {{ end }}

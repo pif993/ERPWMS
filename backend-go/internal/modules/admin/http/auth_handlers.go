@@ -29,6 +29,10 @@ func (h AuthHandlers) Login(c *gin.Context) {
 		return
 	}
 	c.SetCookie("refresh_token", res.RefreshToken, 7*24*3600, "/", "", h.CookieSecure, true)
+	if c.ContentType() == "application/x-www-form-urlencoded" {
+		c.Redirect(http.StatusFound, "/stock")
+		return
+	}
 	c.JSON(200, gin.H{"access_token": res.AccessToken})
 }
 
@@ -44,13 +48,17 @@ func (h AuthHandlers) Refresh(c *gin.Context) {
 		return
 	}
 	c.SetCookie("refresh_token", res.RefreshToken, 7*24*3600, "/", "", h.CookieSecure, true)
+	if c.ContentType() == "application/x-www-form-urlencoded" {
+		c.Redirect(http.StatusFound, "/stock")
+		return
+	}
 	c.JSON(200, gin.H{"access_token": res.AccessToken})
 }
 
 func (h AuthHandlers) Logout(c *gin.Context) {
 	refresh, _ := c.Cookie("refresh_token")
 	if refresh != "" {
-		_ = h.Service.Logout(c, refresh)
+		_ = h.Service.Logout(c, refresh, c.GetHeader("User-Agent"), c.ClientIP())
 	}
 	c.SetCookie("refresh_token", "", -1, "/", "", h.CookieSecure, true)
 	c.Status(http.StatusNoContent)

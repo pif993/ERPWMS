@@ -12,6 +12,8 @@ type bucket struct {
 	reset time.Time
 }
 
+// RateLimit is an in-memory limiter for dev/small deployments.
+// For production distributed deployments, replace with Redis-based limiter.
 func RateLimit(perMin int) gin.HandlerFunc {
 	var mu sync.Mutex
 	buckets := map[string]bucket{}
@@ -20,7 +22,7 @@ func RateLimit(perMin int) gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		key := c.ClientIP() + c.FullPath()
+		key := c.ClientIP() + ":" + c.FullPath()
 		now := time.Now()
 		mu.Lock()
 		b := buckets[key]

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"erpwms/backend-go/internal/db/sqlcgen"
 	"github.com/google/uuid"
@@ -47,6 +48,29 @@ func (s StockService) MoveStock(ctx context.Context, req MoveRequest, actor uuid
 		return MoveResponse{}, err
 	}
 
+	itemID, err := scanUUID(req.ItemID)
+	if err != nil {
+		return MoveResponse{}, err
+	}
+	fromID, err := scanUUID(req.FromLocationID)
+	if err != nil {
+		return MoveResponse{}, err
+	}
+	toID, err := scanUUID(req.ToLocationID)
+	if err != nil {
+		return MoveResponse{}, err
+	}
+	qty, err := scanNumeric(req.Qty)
+	if err != nil {
+		return MoveResponse{}, err
+	}
+	negQty, err := scanNumeric("-" + req.Qty)
+	if err != nil {
+		return MoveResponse{}, err
+	}
+	actorID, _ := scanUUID(actor.String())
+	requestID, _ := ctx.Value("request_id").(string)
+
 	tx, err := s.DB.Begin(ctx)
 	if err != nil {
 		return MoveResponse{}, err
@@ -54,14 +78,7 @@ func (s StockService) MoveStock(ctx context.Context, req MoveRequest, actor uuid
 	defer tx.Rollback(ctx)
 	q := s.Queries.WithTx(tx)
 
-	itemID := mustUUID(req.ItemID)
-	fromID := mustUUID(req.FromLocationID)
-	toID := mustUUID(req.ToLocationID)
-	qty := mustNumeric(req.Qty)
-	negQty := mustNumeric("-" + req.Qty)
-	actorID := mustUUID(actor.String())
-
-	move, err := q.InsertStockLedgerMove(ctx, sqlcgen.InsertStockLedgerMoveParams{ItemID: itemID, Qty: qty, FromLocationID: fromID, ToLocationID: toID, ReasonCode: req.ReasonCode, ActorUserID: actorID})
+	move, err := q.InsertStockLedgerMove(ctx, sqlcgen.InsertStockLedgerMoveParams{ItemID: itemID, Qty: qty, FromLocationID: fromID, ToLocationID: toID, ReasonCode: req.ReasonCode, ActorUserID: actorID, RequestID: txt(requestID)})
 	if err != nil {
 		return MoveResponse{}, err
 	}
@@ -76,7 +93,7 @@ func (s StockService) MoveStock(ctx context.Context, req MoveRequest, actor uuid
 	if _, err := q.InsertOutboxEvent(ctx, sqlcgen.InsertOutboxEventParams{Topic: "stock.moved", Payload: payload}); err != nil {
 		return MoveResponse{}, err
 	}
-	_ = q.InsertAuditLog(ctx, sqlcgen.InsertAuditLogParams{ActorUserID: actorID, ActorType: "user", Action: "stock.move", Resource: "stock_ledger", ResourceID: txt(move.MoveID.String()), Status: "ok", Metadata: payload})
+	_ = q.InsertAuditLog(ctx, sqlcgen.InsertAuditLogParams{ActorUserID: actorID, ActorType: "user", Action: "stock.move", Resource: "stock_ledger", ResourceID: txt(move.MoveID.String()), Status: "ok", RequestID: txt(requestID), Metadata: payload})
 
 	resp := MoveResponse{MoveID: move.MoveID.String(), Status: "ok"}
 	respJSON, _ := json.Marshal(resp)
@@ -97,6 +114,22 @@ func hashReq(v any) (string, error) {
 	h := sha256.Sum256(b)
 	return hex.EncodeToString(h[:]), nil
 }
-func mustUUID(v string) pgtype.UUID       { var u pgtype.UUID; _ = u.Scan(v); return u }
-func mustNumeric(v string) pgtype.Numeric { var n pgtype.Numeric; _ = n.Scan(v); return n }
+
+func scanUUID(v string) (pgtype.UUID, error) {
+	var u pgtype.UUID
+	if err := u.Scan(v); err != nil {
+		return pgtype.UUID{}, fmt.Errorf("invalid uuid %q", v)
+	}
+	return u, nil
+}
+
+func scanNumeric(v string) (pgtype.Numeric, error) {
+	var n pgtype.Numeric
+	if err := n.Scan(v); err != nil {
+		return pgtype.Numeric{}, fmt.Errorf("invalid numeric %q", v)
+	}
+	return n, nil
+}
+
+func mustNumeric(v string) pgtype.Numeric { n, _ := scanNumeric(v); return n }
 func txt(v string) pgtype.Text            { return pgtype.Text{String: v, Valid: v != ""} }

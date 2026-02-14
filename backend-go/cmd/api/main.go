@@ -63,7 +63,10 @@ func main() {
 	ah := adminhttp.AuthHandlers{Service: authSvc, CookieSecure: cfg.CookieSecure}
 	r.GET("/login", func(c *gin.Context) { c.HTML(200, "pages/login.html", nil) })
 	r.POST("/login", ah.Login)
-	r.GET("/stock", func(c *gin.Context) { c.HTML(200, "pages/stock.html", nil) })
+	r.GET("/stock", func(c *gin.Context) {
+		rows, _ := q.ListStockBalances(c, sqlc.ListStockBalancesParams{Column1: c.Query("q"), Column2: c.Query("warehouse"), Column3: c.Query("location"), Limit: 100, Offset: 0})
+		c.HTML(200, "pages/stock.html", gin.H{"Rows": rows})
+	})
 
 	api := r.Group("/api")
 	api.POST("/auth/login", ah.Login)

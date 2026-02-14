@@ -13,9 +13,11 @@ gen-sqlc:
 	cd backend-go && go run github.com/sqlc-dev/sqlc/cmd/sqlc@latest generate
 
 migrate-up:
+	set -a; [ -f infra/.env ] && . infra/.env || . infra/.env.example; set +a; \
 	cd backend-go && go run github.com/pressly/goose/v3/cmd/goose@latest -dir internal/db/migrations postgres "$$DB_URL" up
 
 seed:
+	set -a; [ -f infra/.env ] && . infra/.env || . infra/.env.example; set +a; \
 	cd backend-go && go run ./cmd/seed
 
 test-go:
