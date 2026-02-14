@@ -23,7 +23,7 @@ func (h AuthHandlers) Login(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "bad request"})
 		return
 	}
-	res, err := h.Service.Login(c, req.Email, req.Password, c.GetHeader("User-Agent"), c.ClientIP())
+	res, err := h.Service.Login(c.Request.Context(), req.Email, req.Password, c.GetHeader("User-Agent"), c.ClientIP())
 	if err != nil {
 		c.JSON(401, gin.H{"error": "invalid credentials"})
 		return
@@ -42,7 +42,7 @@ func (h AuthHandlers) Refresh(c *gin.Context) {
 		c.JSON(401, gin.H{"error": "missing refresh"})
 		return
 	}
-	res, err := h.Service.Refresh(c, refresh, c.GetHeader("User-Agent"), c.ClientIP())
+	res, err := h.Service.Refresh(c.Request.Context(), refresh, c.GetHeader("User-Agent"), c.ClientIP())
 	if err != nil {
 		c.JSON(401, gin.H{"error": "invalid refresh"})
 		return
@@ -58,7 +58,7 @@ func (h AuthHandlers) Refresh(c *gin.Context) {
 func (h AuthHandlers) Logout(c *gin.Context) {
 	refresh, _ := c.Cookie("refresh_token")
 	if refresh != "" {
-		_ = h.Service.Logout(c, refresh, c.GetHeader("User-Agent"), c.ClientIP())
+		_ = h.Service.Logout(c.Request.Context(), refresh, c.GetHeader("User-Agent"), c.ClientIP())
 	}
 	c.SetCookie("refresh_token", "", -1, "/", "", h.CookieSecure, true)
 	c.Status(http.StatusNoContent)
