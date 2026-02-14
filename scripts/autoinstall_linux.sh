@@ -28,13 +28,17 @@ detect_os() {
 install_docker_debian() {
   apt-get update -y
   apt-get install -y ca-certificates curl gnupg lsb-release git openssl
+
   install -m 0755 -d /etc/apt/keyrings
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
   chmod a+r /etc/apt/keyrings/docker.gpg
+
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
     > /etc/apt/sources.list.d/docker.list
+
   apt-get update -y
   apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
   systemctl enable --now docker
 }
 
@@ -42,6 +46,7 @@ install_docker_rhel() {
   dnf install -y dnf-plugins-core git openssl curl
   dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
   dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
   systemctl enable --now docker
 }
 
@@ -108,7 +113,10 @@ main() {
   case "$(detect_os)" in
     ubuntu|debian) install_docker_debian ;;
     rhel|centos|rocky|almalinux|fedora) install_docker_rhel ;;
-    *) echo "Unsupported OS"; exit 1 ;;
+    *)
+      echo "Unsupported OS (supported: ubuntu/debian/rhel/centos/rocky/almalinux/fedora)"
+      exit 1
+      ;;
   esac
 
   mkdir -p "$INSTALL_DIR"
@@ -117,7 +125,9 @@ main() {
   fi
   cd "$INSTALL_DIR"
 
-  [[ -f infra/.env ]] || write_env infra/.env
+  if [[ ! -f infra/.env ]]; then
+    write_env infra/.env
+  fi
 
   docker compose -f infra/docker-compose.yml up -d --build
   docker compose -f infra/docker-compose.yml run --rm migrator
