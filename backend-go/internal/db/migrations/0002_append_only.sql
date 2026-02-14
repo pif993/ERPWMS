@@ -1,34 +1,47 @@
 -- +goose Up
-CREATE OR REPLACE FUNCTION forbid_update_delete() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION forbid_update_delete()
+RETURNS trigger AS $$
 BEGIN
-  RAISE EXCEPTION 'table % is append-only', TG_TABLE_NAME;
+  RAISE EXCEPTION 'append-only';
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER tr_stock_ledger_append_only
-  BEFORE UPDATE OR DELETE ON stock_ledger
-  FOR EACH ROW EXECUTE FUNCTION forbid_update_delete();
+DROP TRIGGER IF EXISTS trg_audit_log_append_only ON audit_log;
+CREATE TRIGGER trg_audit_log_append_only
+BEFORE UPDATE OR DELETE ON audit_log
+FOR EACH ROW
+EXECUTE FUNCTION forbid_update_delete();
 
-CREATE TRIGGER tr_audit_log_append_only
-  BEFORE UPDATE OR DELETE ON audit_log
-  FOR EACH ROW EXECUTE FUNCTION forbid_update_delete();
+DROP TRIGGER IF EXISTS trg_stock_ledger_append_only ON stock_ledger;
+CREATE TRIGGER trg_stock_ledger_append_only
+BEFORE UPDATE OR DELETE ON stock_ledger
+FOR EACH ROW
+EXECUTE FUNCTION forbid_update_delete();
 
-CREATE OR REPLACE FUNCTION outbox_update_guard() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION outbox_events_guard_immutable()
+RETURNS trigger AS $$
 BEGIN
-  IF OLD.id <> NEW.id OR OLD.topic <> NEW.topic OR OLD.payload <> NEW.payload OR OLD.created_at <> NEW.created_at THEN
-    RAISE EXCEPTION 'outbox_events immutable columns cannot be updated';
+  IF NEW.id IS DISTINCT FROM OLD.id
+    OR NEW.topic IS DISTINCT FROM OLD.topic
+    OR NEW.payload IS DISTINCT FROM OLD.payload
+    OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+    RAISE EXCEPTION 'outbox immutable fields cannot be modified';
   END IF;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER tr_outbox_guard
-  BEFORE UPDATE ON outbox_events
-  FOR EACH ROW EXECUTE FUNCTION outbox_update_guard();
+DROP TRIGGER IF EXISTS trg_outbox_events_guard_immutable ON outbox_events;
+CREATE TRIGGER trg_outbox_events_guard_immutable
+BEFORE UPDATE ON outbox_events
+FOR EACH ROW
+EXECUTE FUNCTION outbox_events_guard_immutable();
 
 -- +goose Down
-DROP TRIGGER IF EXISTS tr_outbox_guard ON outbox_events;
-DROP FUNCTION IF EXISTS outbox_update_guard();
-DROP TRIGGER IF EXISTS tr_stock_ledger_append_only ON stock_ledger;
-DROP TRIGGER IF EXISTS tr_audit_log_append_only ON audit_log;
+DROP TRIGGER IF EXISTS trg_outbox_events_guard_immutable ON outbox_events;
+DROP FUNCTION IF EXISTS outbox_events_guard_immutable();
+
+DROP TRIGGER IF EXISTS trg_stock_ledger_append_only ON stock_ledger;
+DROP TRIGGER IF EXISTS trg_audit_log_append_only ON audit_log;
 DROP FUNCTION IF EXISTS forbid_update_delete();
