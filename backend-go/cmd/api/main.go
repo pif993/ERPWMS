@@ -47,7 +47,7 @@ func main() {
 	r.Use(gin.Recovery(), middleware.RequestID(), middleware.SecurityHeaders(), middleware.CORS(cfg.CorsOrigins), middleware.RateLimit(cfg.RateLimitAPI))
 
 	r.GET("/health", func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(c, 2*time.Second)
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 		defer cancel()
 		dberr := db.Ping(ctx)
 		rerr := rdb.Ping(ctx).Err()
@@ -64,7 +64,13 @@ func main() {
 	r.GET("/login", func(c *gin.Context) { c.HTML(200, "pages/login.html", nil) })
 	r.POST("/login", ah.Login)
 	r.GET("/stock", func(c *gin.Context) {
-		rows, _ := q.ListStockBalances(c, sqlc.ListStockBalancesParams{Column1: c.Query("q"), Column2: c.Query("warehouse"), Column3: c.Query("location"), Limit: 100, Offset: 0})
+		rows, _ := q.ListStockBalances(c.Request.Context(), sqlc.ListStockBalancesParams{
+			Column1: c.Query("q"),
+			Column2: c.Query("warehouse"),
+			Column3: c.Query("location"),
+			Limit:   100,
+			Offset:  0,
+		})
 		c.HTML(200, "pages/stock.html", gin.H{"Rows": rows})
 	})
 

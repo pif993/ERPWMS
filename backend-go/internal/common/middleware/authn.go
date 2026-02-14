@@ -29,7 +29,7 @@ func Authn(jwtMgr auth.JWTManager, q *sqlc.Queries) gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			return
 		}
-		perms, err := q.ListPermissionsByUserID(c, uid)
+		perms, err := q.ListPermissionsByUserID(c.Request.Context(), uid)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			return
