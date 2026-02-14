@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
@@ -90,29 +91,47 @@ func HashPassword(password string, p Argon2Params) (string, error) {
 
 func VerifyPassword(password, encoded string) bool {
 	parts := strings.Split(encoded, "$")
-	if len(parts) != 7 || parts[0] != "argon2id" || parts[1] != "v=19" {
-		return false
+	if len(parts) == 7 && parts[0] == "argon2id" && parts[1] == "v=19" {
+		memory, ok := parseParam(parts[2], "m")
+		if !ok {
+			return false
+		}
+		timeCost, ok := parseParam(parts[3], "t")
+		if !ok {
+			return false
+		}
+		threads, ok := parseParam(parts[4], "p")
+		if !ok {
+			return false
+		}
+
+		salt, err := base64.RawStdEncoding.DecodeString(parts[5])
+		if err != nil {
+			return false
+		}
+		expected, err := base64.RawStdEncoding.DecodeString(parts[6])
+		if err != nil {
+			return false
+		}
+
+		got := argon2.IDKey([]byte(password), salt, uint32(timeCost), uint32(memory), uint8(threads), uint32(len(expected)))
+		return subtleCompare(got, expected)
 	}
-	var p Argon2Params
-	if _, err := fmt.Sscanf(parts[2], "m=%d", &p.Memory); err != nil {
-		return false
+
+	legacySalt := []byte("static-salt-change")
+	legacy := argon2.IDKey([]byte(password), legacySalt, 2, 64*1024, 2, 32)
+	return base64.StdEncoding.EncodeToString(legacy) == encoded
+}
+
+func parseParam(s, key string) (int, bool) {
+	if !strings.HasPrefix(s, key+"=") {
+		return 0, false
 	}
-	if _, err := fmt.Sscanf(parts[3], "t=%d", &p.Time); err != nil {
-		return false
-	}
-	if _, err := fmt.Sscanf(parts[4], "p=%d", &p.Threads); err != nil {
-		return false
-	}
-	salt, err := base64.RawStdEncoding.DecodeString(parts[5])
+	v, err := strconv.Atoi(strings.TrimPrefix(s, key+"="))
 	if err != nil {
-		return false
+		return 0, false
 	}
-	expected, err := base64.RawStdEncoding.DecodeString(parts[6])
-	if err != nil {
-		return false
-	}
-	got := argon2.IDKey([]byte(password), salt, p.Time, p.Memory, p.Threads, uint32(len(expected)))
-	return subtleCompare(got, expected)
+	return v, true
 }
 
 type FieldEncryption struct {
