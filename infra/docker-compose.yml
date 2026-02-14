@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:16
     env_file:
-      - ./.env.example
+      - ./.env
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_SUPER_USER}
@@ -56,12 +56,44 @@ services:
     networks:
       - erp_net
 
+  tools:
+    image: erpwms-tools:latest
+    build:
+      context: ../backend-go
+      dockerfile: Dockerfile.tools
+    env_file:
+      - ./.env
+    networks:
+      - erp_net
+
+  migrator:
+    image: erpwms-tools:latest
+    depends_on:
+      - postgres
+    env_file:
+      - ./.env
+    command:
+      - /app/tools/migrate.sh
+    networks:
+      - erp_net
+
+  seeder:
+    image: erpwms-tools:latest
+    depends_on:
+      - postgres
+    env_file:
+      - ./.env
+    command:
+      - /app/tools/seed.sh
+    networks:
+      - erp_net
+
   backend-api:
     build:
       context: ../backend-go
       dockerfile: Dockerfile
     env_file:
-      - ./.env.example
+      - ./.env
     depends_on:
       - postgres
       - redis
@@ -85,7 +117,7 @@ services:
     command:
       - /app/worker
     env_file:
-      - ./.env.example
+      - ./.env
     depends_on:
       - postgres
       - nats
@@ -97,7 +129,7 @@ services:
       context: ../python-analytics
       dockerfile: Dockerfile
     env_file:
-      - ./.env.example
+      - ./.env
     healthcheck:
       test:
         - CMD-SHELL

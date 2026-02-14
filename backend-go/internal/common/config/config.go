@@ -27,6 +27,8 @@ type Config struct {
 	CookieSecure         bool
 	RateLimitLogin       int
 	RateLimitAPI         int
+	AutotestEnabled      bool
+	AutotestToken        string
 }
 
 func Load() (Config, error) {
@@ -53,6 +55,8 @@ func Load() (Config, error) {
 		CookieSecure:         cookieSecure,
 		RateLimitLogin:       getInt("RATE_LIMIT_LOGIN_PER_MIN", 10),
 		RateLimitAPI:         getInt("RATE_LIMIT_API_PER_MIN", 120),
+		AutotestEnabled:      getBool("AUTOTEST_ENABLED", false),
+		AutotestToken:        os.Getenv("AUTOTEST_TOKEN"),
 	}
 	if cfg.Env == "prod" {
 		if !cfg.CookieSecure {
