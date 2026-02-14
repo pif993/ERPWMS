@@ -25,7 +25,6 @@
       document.getElementById('run').onclick = async () => {
         out.textContent = 'Running...';
         const tok = document.getElementById('tok').value;
-
         try {
           const r = await fetch('/api/autotest/run', {
             method: 'POST',

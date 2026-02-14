@@ -3,7 +3,6 @@ set -euo pipefail
 
 REPO_URL="${REPO_URL:-https://github.com/pif993/ERPWMS.git}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/erpwms}"
-
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-StrongPassw0rd!}"
 AUTOTEST_TOKEN="${AUTOTEST_TOKEN:-}"
@@ -17,6 +16,7 @@ need_root() {
 
 detect_os() {
   if [[ -f /etc/os-release ]]; then
+    # shellcheck disable=SC1091
     . /etc/os-release
     echo "${ID:-unknown}"
   else
@@ -27,14 +27,11 @@ detect_os() {
 install_docker_debian() {
   apt-get update -y
   apt-get install -y ca-certificates curl gnupg lsb-release git openssl
-
   install -m 0755 -d /etc/apt/keyrings
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
   chmod a+r /etc/apt/keyrings/docker.gpg
-
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
     > /etc/apt/sources.list.d/docker.list
-
   apt-get update -y
   apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
   systemctl enable --now docker
@@ -106,18 +103,10 @@ EOF_ENV
 
 main() {
   need_root
-
   case "$(detect_os)" in
-    ubuntu|debian)
-      install_docker_debian
-      ;;
-    rhel|centos|rocky|almalinux|fedora)
-      install_docker_rhel
-      ;;
-    *)
-      echo "Unsupported OS"
-      exit 1
-      ;;
+    ubuntu|debian) install_docker_debian ;;
+    rhel|centos|rocky|almalinux|fedora) install_docker_rhel ;;
+    *) echo "Unsupported OS"; exit 1 ;;
   esac
 
   mkdir -p "$INSTALL_DIR"
@@ -126,9 +115,7 @@ main() {
   fi
   cd "$INSTALL_DIR"
 
-  if [[ ! -f infra/.env ]]; then
-    write_env infra/.env
-  fi
+  [[ -f infra/.env ]] || write_env infra/.env
 
   docker compose -f infra/docker-compose.yml up -d --build
   docker compose -f infra/docker-compose.yml run --rm migrator
@@ -139,4 +126,5 @@ main() {
   echo "API health:     http://<server-ip>:8081/health"
   echo "Autotest GUI:   http://<server-ip>:8081/autotest"
 }
+
 main "$@"
