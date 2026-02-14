@@ -39,13 +39,32 @@ func main() {
 
 	rdb := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 	nc, _ := nats.Connect(cfg.NATSURL)
-	jwtMgr := auth.JWTManager{Issuer: cfg.JWTIssuer, Audience: cfg.JWTAudience, Current: []byte(cfg.JWTCurrent), Previous: []byte(cfg.JWTPrevious)}
-	authSvc := adminsvc.AuthService{Queries: q, JWT: jwtMgr, SearchPepper: cfg.SearchPepper, AuditPepper: cfg.AuditPepper, Argon: crypto.DefaultArgon2Params()}
+
+	jwtMgr := auth.JWTManager{
+		Issuer:   cfg.JWTIssuer,
+		Audience: cfg.JWTAudience,
+		Current:  []byte(cfg.JWTCurrent),
+		Previous: []byte(cfg.JWTPrevious),
+	}
+
+	authSvc := adminsvc.AuthService{
+		Queries:      q,
+		JWT:          jwtMgr,
+		SearchPepper: cfg.SearchPepper,
+		AuditPepper:  cfg.AuditPepper,
+		Argon:        crypto.DefaultArgon2Params(),
+	}
 	stockSvc := stocksvc.StockService{DB: db, Queries: q}
 
 	r := gin.New()
 	r.LoadHTMLGlob("web/templates/**/*.html")
-	r.Use(gin.Recovery(), middleware.RequestID(), middleware.SecurityHeaders(), middleware.CORS(cfg.CorsOrigins), middleware.RateLimit(cfg.RateLimitAPI))
+	r.Use(
+		gin.Recovery(),
+		middleware.RequestID(),
+		middleware.SecurityHeaders(),
+		middleware.CORS(cfg.CorsOrigins),
+		middleware.RateLimit(cfg.RateLimitAPI),
+	)
 
 	r.GET("/health", func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
@@ -65,8 +84,6 @@ func main() {
 	r.GET("/login", func(c *gin.Context) { c.HTML(200, "pages/login.html", nil) })
 	r.POST("/login", ah.Login)
 
-	th := autotesthttp.Handlers{Enabled: cfg.AutotestEnabled, Token: cfg.AutotestToken, Router: r}
-	r.GET("/autotest", th.Page)
 	r.GET("/stock", func(c *gin.Context) {
 		rows, _ := q.ListStockBalances(c.Request.Context(), sqlc.ListStockBalancesParams{
 			Column1: c.Query("q"),
@@ -78,6 +95,14 @@ func main() {
 		c.HTML(200, "pages/stock.html", gin.H{"Rows": rows})
 	})
 
+	// Autotest GUI + run endpoint
+	th := autotesthttp.Handlers{
+		Enabled: cfg.AutotestEnabled,
+		Token:   cfg.AutotestToken,
+		Router:  r,
+	}
+	r.GET("/autotest", th.Page)
+
 	api := r.Group("/api")
 	api.POST("/auth/login", ah.Login)
 	api.POST("/auth/refresh", ah.Refresh)
@@ -86,6 +111,7 @@ func main() {
 
 	authed := api.Group("/")
 	authed.Use(middleware.Authn(jwtMgr, q))
+
 	sh := stockhttp.StockHandlers{Queries: q, Service: stockSvc}
 	authed.GET("stock/balances", middleware.RequirePermission("wms.stock.read"), sh.ListBalances)
 	authed.POST("stock/moves", middleware.RequirePermission("wms.stock.move"), sh.Move)
