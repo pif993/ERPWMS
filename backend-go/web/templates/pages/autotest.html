@@ -11,8 +11,11 @@
     <p>Inserisci il token (<code>AUTOTEST_TOKEN</code>) e avvia la suite.</p>
 
     <div style="display:flex; gap: 8px; align-items:center;">
-      <input id="tok" placeholder="Autotest token" style="width: 420px; padding: 10px; border-radius: 8px; border: 1px solid #ccc;" />
-      <button id="run" style="padding: 10px 14px; border-radius: 8px; border: 1px solid #333; cursor: pointer;">Run</button>
+      <input id="tok" placeholder="Autotest token"
+             style="width: 420px; padding: 10px; border-radius: 8px; border: 1px solid #ccc;" />
+      <button id="run" style="padding: 10px 14px; border-radius: 8px; border: 1px solid #333; cursor: pointer;">
+        Run
+      </button>
     </div>
 
     <pre id="out" style="margin-top: 16px; background:#f6f8fa; padding: 12px; border-radius: 10px; overflow:auto; max-width: 1100px;"></pre>
@@ -22,13 +25,13 @@
       document.getElementById('run').onclick = async () => {
         out.textContent = 'Running...';
         const tok = document.getElementById('tok').value;
+
         try {
           const r = await fetch('/api/autotest/run', {
             method: 'POST',
             headers: {'X-Autotest-Token': tok}
           });
-          const t = await r.text();
-          out.textContent = t;
+          out.textContent = await r.text();
         } catch (e) {
           out.textContent = String(e);
         }

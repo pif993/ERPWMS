@@ -3,13 +3,26 @@ set -euo pipefail
 
 REPO_URL="${REPO_URL:-https://github.com/pif993/ERPWMS.git}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/erpwms}"
+
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-StrongPassw0rd!}"
 AUTOTEST_TOKEN="${AUTOTEST_TOKEN:-}"
 
-need_root() { [[ "$(id -u)" -eq 0 ]] || { echo "Run as root (sudo)."; exit 1; }; }
+need_root() {
+  if [[ "$(id -u)" -ne 0 ]]; then
+    echo "Run as root (sudo)."
+    exit 1
+  fi
+}
 
-detect_os() { . /etc/os-release 2>/dev/null || true; echo "${ID:-unknown}"; }
+detect_os() {
+  if [[ -f /etc/os-release ]]; then
+    . /etc/os-release
+    echo "${ID:-unknown}"
+  else
+    echo "unknown"
+  fi
+}
 
 install_docker_debian() {
   apt-get update -y
@@ -44,7 +57,7 @@ write_env() {
   autotok="${AUTOTEST_TOKEN:-}"
   [[ -n "${autotok}" ]] || autotok="$(gen_secret_b64)"
 
-  cat > "$env_file" <<EOFENV
+  cat > "$env_file" <<EOF_ENV
 ENV=dev
 HTTP_ADDR=:8080
 COOKIE_SECURE=false
@@ -57,6 +70,7 @@ POSTGRES_SUPER_USER=postgres
 POSTGRES_SUPER_PASSWORD=postgres
 POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
+
 APP_DB_USER=erp_app
 APP_DB_PASSWORD=change-me-app
 DB_URL=postgres://erp_app:change-me-app@postgres:5432/erpwms?sslmode=disable
@@ -71,6 +85,7 @@ JWT_SIGNING_KEY_PREVIOUS=${jwt_prev}
 
 SEARCH_PEPPER=${search}
 AUDIT_PEPPER=${audit}
+
 FIELD_ENC_MASTER_KEY_CURRENT=${field}
 FIELD_ENC_MASTER_KEY_PREVIOUS=
 FIELD_ENC_KEY_ID_CURRENT=v1
@@ -83,15 +98,22 @@ AUTOTEST_ENABLED=true
 AUTOTEST_TOKEN=${autotok}
 
 ANALYTICS_SERVICE_TOKEN=change-analytics-token
-EOFENV
+EOF_ENV
 }
 
 main() {
   need_root
   case "$(detect_os)" in
-    ubuntu|debian) install_docker_debian ;;
-    rhel|centos|rocky|almalinux|fedora) install_docker_rhel ;;
-    *) echo "Unsupported OS"; exit 1 ;;
+    ubuntu|debian)
+      install_docker_debian
+      ;;
+    rhel|centos|rocky|almalinux|fedora)
+      install_docker_rhel
+      ;;
+    *)
+      echo "Unsupported OS"
+      exit 1
+      ;;
   esac
 
   mkdir -p "$INSTALL_DIR"
@@ -106,9 +128,10 @@ main() {
   docker compose -f infra/docker-compose.yml run --rm migrator
   docker compose -f infra/docker-compose.yml run --rm seeder
 
-  echo "OK: http://<server-ip>:8080 (Caddy)"
-  echo "API: http://<server-ip>:8081/health"
-  echo "Autotest: http://<server-ip>:8081/autotest"
+  echo "Install complete."
+  echo "Portal (Caddy): http://<server-ip>:8080"
+  echo "API health:     http://<server-ip>:8081/health"
+  echo "Autotest GUI:   http://<server-ip>:8081/autotest"
 }
 
 main "$@"
