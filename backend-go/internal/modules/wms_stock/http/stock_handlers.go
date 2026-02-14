@@ -42,7 +42,11 @@ func (h StockHandlers) Move(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "bad request"})
 		return
 	}
-	uid, _ := uuid.Parse(c.GetString("user_id"))
+	uid, err := uuid.Parse(c.GetString("user_id"))
+	if err != nil || uid == uuid.Nil {
+		c.JSON(401, gin.H{"error": "unauthorized"})
+		return
+	}
 	resp, err := h.Service.MoveStock(c.Request.Context(), req, uid, "/api/stock/moves", key)
 	if err != nil {
 		c.JSON(409, gin.H{"error": err.Error()})

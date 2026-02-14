@@ -28,7 +28,17 @@ func (h AuthHandlers) Login(c *gin.Context) {
 		c.JSON(401, gin.H{"error": "invalid credentials"})
 		return
 	}
-	c.SetCookie("refresh_token", res.RefreshToken, 7*24*3600, "/", "", h.CookieSecure, true)
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    res.RefreshToken,
+		Path:     "/",
+		MaxAge:   7 * 24 * 3600,
+		Secure:   h.CookieSecure,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
 	if c.ContentType() == "application/x-www-form-urlencoded" {
 		c.Redirect(http.StatusFound, "/stock")
 		return
@@ -47,7 +57,17 @@ func (h AuthHandlers) Refresh(c *gin.Context) {
 		c.JSON(401, gin.H{"error": "invalid refresh"})
 		return
 	}
-	c.SetCookie("refresh_token", res.RefreshToken, 7*24*3600, "/", "", h.CookieSecure, true)
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    res.RefreshToken,
+		Path:     "/",
+		MaxAge:   7 * 24 * 3600,
+		Secure:   h.CookieSecure,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
 	if c.ContentType() == "application/x-www-form-urlencoded" {
 		c.Redirect(http.StatusFound, "/stock")
 		return
@@ -60,6 +80,14 @@ func (h AuthHandlers) Logout(c *gin.Context) {
 	if refresh != "" {
 		_ = h.Service.Logout(c.Request.Context(), refresh, c.GetHeader("User-Agent"), c.ClientIP())
 	}
-	c.SetCookie("refresh_token", "", -1, "/", "", h.CookieSecure, true)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		Secure:   h.CookieSecure,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
 	c.Status(http.StatusNoContent)
 }
