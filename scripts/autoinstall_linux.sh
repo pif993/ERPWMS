@@ -27,11 +27,14 @@ detect_os() {
 install_docker_debian() {
   apt-get update -y
   apt-get install -y ca-certificates curl gnupg lsb-release git openssl
+
   install -m 0755 -d /etc/apt/keyrings
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
   chmod a+r /etc/apt/keyrings/docker.gpg
+
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
     > /etc/apt/sources.list.d/docker.list
+
   apt-get update -y
   apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
   systemctl enable --now docker
@@ -103,6 +106,7 @@ EOF_ENV
 
 main() {
   need_root
+
   case "$(detect_os)" in
     ubuntu|debian)
       install_docker_debian
@@ -122,7 +126,9 @@ main() {
   fi
   cd "$INSTALL_DIR"
 
-  [[ -f infra/.env ]] || write_env infra/.env
+  if [[ ! -f infra/.env ]]; then
+    write_env infra/.env
+  fi
 
   docker compose -f infra/docker-compose.yml up -d --build
   docker compose -f infra/docker-compose.yml run --rm migrator
@@ -133,5 +139,4 @@ main() {
   echo "API health:     http://<server-ip>:8081/health"
   echo "Autotest GUI:   http://<server-ip>:8081/autotest"
 }
-
 main "$@"
