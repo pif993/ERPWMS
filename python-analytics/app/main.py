@@ -10,7 +10,6 @@ TOKEN = os.getenv("ANALYTICS_SERVICE_TOKEN", "")
 
 def require_token(x_service_token: str) -> None:
     if not TOKEN or TOKEN in ("replace-token", "changeme", "change-me"):
-        # hard fail if misconfigured
         raise HTTPException(status_code=500, detail="analytics token not configured")
     if x_service_token != TOKEN:
         raise HTTPException(status_code=401, detail="unauthorized")
