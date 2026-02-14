@@ -1,4 +1,6 @@
-.PHONY: dev down logs migrate-up gen-sqlc seed test-go lint-go sec-go test-py lint-py sec-py fmt
+.PHONY: dev down logs bootstrap \
+        gen-sqlc migrate-up seed migrate-up-docker seed-docker \
+        test-go lint-go sec-go test-py lint-py sec-py fmt
 
 dev:
 	docker compose -f infra/docker-compose.yml up -d --build
@@ -9,16 +11,26 @@ down:
 logs:
 	docker compose -f infra/docker-compose.yml logs -f
 
+# Bootstrap stack using container tools (no Go required on host)
+bootstrap: dev migrate-up-docker seed-docker
+
+migrate-up-docker:
+	docker compose -f infra/docker-compose.yml run --rm migrator
+
+seed-docker:
+	docker compose -f infra/docker-compose.yml run --rm seeder
+
+# Host-based tools (require Go on host)
 gen-sqlc:
 	cd backend-go && go run github.com/sqlc-dev/sqlc/cmd/sqlc@latest generate
 
 migrate-up:
 	set -a; [ -f infra/.env ] && . infra/.env || . infra/.env.example; set +a; \
-	cd backend-go && go run github.com/pressly/goose/v3/cmd/goose@latest -dir internal/db/migrations postgres "$$DB_URL" up
+	  cd backend-go && go run github.com/pressly/goose/v3/cmd/goose@latest -dir internal/db/migrations postgres "$$DB_URL" up
 
 seed:
 	set -a; [ -f infra/.env ] && . infra/.env || . infra/.env.example; set +a; \
-	cd backend-go && go run ./cmd/seed
+	  cd backend-go && go run ./cmd/seed
 
 test-go:
 	cd backend-go && go test ./...
