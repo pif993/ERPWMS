@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO_URL="${REPO_URL:-https://github.com/pif993/ERPWMS.git}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/erpwms}"
+
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-StrongPassw0rd!}"
 AUTOTEST_TOKEN="${AUTOTEST_TOKEN:-}"
@@ -103,6 +104,7 @@ EOF_ENV
 
 main() {
   need_root
+
   case "$(detect_os)" in
     ubuntu|debian) install_docker_debian ;;
     rhel|centos|rocky|almalinux|fedora) install_docker_rhel ;;
