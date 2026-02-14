@@ -1,6 +1,5 @@
-.PHONY: dev down logs bootstrap \
-        gen-sqlc migrate-up seed migrate-up-docker seed-docker \
-        test-go lint-go sec-go test-py lint-py sec-py fmt
+.PHONY: dev down logs bootstrap migrate-up-docker seed-docker \
+        migrate-up gen-sqlc seed test-go lint-go sec-go test-py lint-py sec-py fmt
 
 dev:
 	docker compose -f infra/docker-compose.yml up -d --build
@@ -11,7 +10,7 @@ down:
 logs:
 	docker compose -f infra/docker-compose.yml logs -f
 
-# Bootstrap stack using container tools (no Go required on host)
+# Bootstrap using container tools (no Go required on host)
 bootstrap: dev migrate-up-docker seed-docker
 
 migrate-up-docker:
@@ -20,7 +19,6 @@ migrate-up-docker:
 seed-docker:
 	docker compose -f infra/docker-compose.yml run --rm seeder
 
-# Host-based tools (require Go on host)
 gen-sqlc:
 	cd backend-go && go run github.com/sqlc-dev/sqlc/cmd/sqlc@latest generate
 
