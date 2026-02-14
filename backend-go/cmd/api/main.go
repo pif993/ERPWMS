@@ -13,6 +13,7 @@ import (
 	sqlc "erpwms/backend-go/internal/db/sqlcgen"
 	adminhttp "erpwms/backend-go/internal/modules/admin/http"
 	adminsvc "erpwms/backend-go/internal/modules/admin/service"
+	autotesthttp "erpwms/backend-go/internal/modules/autotest/http"
 	stockhttp "erpwms/backend-go/internal/modules/wms_stock/http"
 	stocksvc "erpwms/backend-go/internal/modules/wms_stock/service"
 
@@ -63,6 +64,9 @@ func main() {
 	ah := adminhttp.AuthHandlers{Service: authSvc, CookieSecure: cfg.CookieSecure}
 	r.GET("/login", func(c *gin.Context) { c.HTML(200, "pages/login.html", nil) })
 	r.POST("/login", ah.Login)
+
+	th := autotesthttp.Handlers{Enabled: cfg.AutotestEnabled, Token: cfg.AutotestToken, Router: r}
+	r.GET("/autotest", th.Page)
 	r.GET("/stock", func(c *gin.Context) {
 		rows, _ := q.ListStockBalances(c.Request.Context(), sqlc.ListStockBalancesParams{
 			Column1: c.Query("q"),
@@ -78,6 +82,7 @@ func main() {
 	api.POST("/auth/login", ah.Login)
 	api.POST("/auth/refresh", ah.Refresh)
 	api.POST("/auth/logout", ah.Logout)
+	api.POST("/autotest/run", th.Run)
 
 	authed := api.Group("/")
 	authed.Use(middleware.Authn(jwtMgr, q))
