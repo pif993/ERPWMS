@@ -48,17 +48,6 @@ func Load() (Config, error) {
 		redisAddr = "redis:6379"
 	}
 
-	searchPepper := os.Getenv("SEARCH_PEPPER")
-	if searchPepper == "" {
-		// Back-compat
-		searchPepper = os.Getenv("SEARCH_KEY")
-	}
-	auditPepper := os.Getenv("AUDIT_PEPPER")
-	if auditPepper == "" {
-		// Back-compat
-		auditPepper = os.Getenv("CSRF_AUTH_KEY")
-	}
-
 	cfg := Config{
 		Env:      env,
 		HTTPAddr: get("HTTP_ADDR", ":8080"),
@@ -76,8 +65,8 @@ func Load() (Config, error) {
 		JWTAudience:          get("JWT_AUDIENCE", "erpwms-users"),
 		JWTCurrent:           os.Getenv("JWT_SIGNING_KEY_CURRENT"),
 		JWTPrevious:          os.Getenv("JWT_SIGNING_KEY_PREVIOUS"),
-		SearchPepper:         searchPepper,
-		AuditPepper:          auditPepper,
+		SearchPepper:         os.Getenv("SEARCH_PEPPER"),
+		AuditPepper:          os.Getenv("AUDIT_PEPPER"),
 		FieldEncCurrentB64:   os.Getenv("FIELD_ENC_MASTER_KEY_CURRENT"),
 		FieldEncPreviousB64:  os.Getenv("FIELD_ENC_MASTER_KEY_PREVIOUS"),
 		FieldEncCurrentKeyID: get("FIELD_ENC_KEY_ID_CURRENT", "v1"),

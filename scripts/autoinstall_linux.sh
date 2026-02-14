@@ -3,26 +3,13 @@ set -euo pipefail
 
 REPO_URL="${REPO_URL:-https://github.com/pif993/ERPWMS.git}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/erpwms}"
-
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-StrongPassw0rd!}"
 AUTOTEST_TOKEN="${AUTOTEST_TOKEN:-}"
 
-need_root() {
-  if [[ "$(id -u)" -ne 0 ]]; then
-    echo "Run as root (or with sudo)."
-    exit 1
-  fi
-}
+need_root() { [[ "$(id -u)" -eq 0 ]] || { echo "Run as root (sudo)."; exit 1; }; }
 
-detect_os() {
-  if [[ -f /etc/os-release ]]; then
-    . /etc/os-release
-    echo "${ID:-unknown}"
-  else
-    echo "unknown"
-  fi
-}
+detect_os() { . /etc/os-release 2>/dev/null || true; echo "${ID:-unknown}"; }
 
 install_docker_debian() {
   apt-get update -y
@@ -30,7 +17,7 @@ install_docker_debian() {
   install -m 0755 -d /etc/apt/keyrings
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
   chmod a+r /etc/apt/keyrings/docker.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" \
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
     > /etc/apt/sources.list.d/docker.list
   apt-get update -y
   apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
@@ -55,7 +42,7 @@ write_env() {
   audit="$(gen_secret_b64)"
   field="$(gen_secret_b64)"
   autotok="${AUTOTEST_TOKEN:-}"
-  if [[ -z "${autotok}" ]]; then autotok="$(gen_secret_b64)"; fi
+  [[ -n "${autotok}" ]] || autotok="$(gen_secret_b64)"
 
   cat > "$env_file" <<EOFENV
 ENV=dev
@@ -72,7 +59,6 @@ POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
 APP_DB_USER=erp_app
 APP_DB_PASSWORD=change-me-app
-
 DB_URL=postgres://erp_app:change-me-app@postgres:5432/erpwms?sslmode=disable
 
 REDIS_ADDR=redis:6379
@@ -96,18 +82,16 @@ ADMIN_PASSWORD=${ADMIN_PASSWORD}
 AUTOTEST_ENABLED=true
 AUTOTEST_TOKEN=${autotok}
 
-ANALYTICS_SERVICE_TOKEN=replace-token
+ANALYTICS_SERVICE_TOKEN=change-analytics-token
 EOFENV
 }
 
 main() {
   need_root
-  local osid
-  osid="$(detect_os)"
-  case "$osid" in
+  case "$(detect_os)" in
     ubuntu|debian) install_docker_debian ;;
     rhel|centos|rocky|almalinux|fedora) install_docker_rhel ;;
-    *) echo "Unsupported OS: $osid"; exit 1 ;;
+    *) echo "Unsupported OS"; exit 1 ;;
   esac
 
   mkdir -p "$INSTALL_DIR"
@@ -116,18 +100,15 @@ main() {
   fi
   cd "$INSTALL_DIR"
 
-  if [[ ! -f infra/.env ]]; then
-    write_env infra/.env
-  fi
+  [[ -f infra/.env ]] || write_env infra/.env
 
   docker compose -f infra/docker-compose.yml up -d --build
   docker compose -f infra/docker-compose.yml run --rm migrator
   docker compose -f infra/docker-compose.yml run --rm seeder
 
-  echo "Install complete."
-  echo "Portal (Caddy): http://<server-ip>:8080"
-  echo "API:          http://<server-ip>:8081/health"
-  echo "Autotest:     http://<server-ip>:8081/autotest"
+  echo "OK: http://<server-ip>:8080 (Caddy)"
+  echo "API: http://<server-ip>:8081/health"
+  echo "Autotest: http://<server-ip>:8081/autotest"
 }
 
 main "$@"
