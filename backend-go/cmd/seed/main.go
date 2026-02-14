@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"log"
 	"os"
+	"strings"
 
 	"erpwms/backend-go/internal/common/config"
 	"erpwms/backend-go/internal/common/crypto"
@@ -22,6 +23,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer db.Close()
+
 	q := sqlc.New(db)
 	ctx := context.Background()
 
@@ -35,15 +38,40 @@ func main() {
 		log.Fatal("ADMIN_EMAIL and ADMIN_PASSWORD required")
 	}
 
-	fe := crypto.FieldEncryption{CurrentID: cfg.FieldEncCurrentKeyID}
-	if cfg.FieldEncCurrentB64 != "" {
-		fe.CurrentKey, _ = base64.StdEncoding.DecodeString(cfg.FieldEncCurrentB64)
+	fe := crypto.FieldEncryption{CurrentID: cfg.FieldEncCurrentKeyID, PreviousID: cfg.FieldEncPrevKeyID}
+	if strings.TrimSpace(cfg.FieldEncCurrentB64) != "" {
+		fe.CurrentKey, err = base64.StdEncoding.DecodeString(cfg.FieldEncCurrentB64)
+		if err != nil {
+			log.Fatalf("invalid FIELD_ENC_MASTER_KEY_CURRENT: %v", err)
+		}
 	} else {
+		log.Print("WARNING: FIELD_ENC_MASTER_KEY_CURRENT empty, using dev-only static key")
 		fe.CurrentKey = []byte("12345678901234567890123456789012")
 	}
-	enc, _ := fe.EncryptString(email, "users:new:email")
-	hash, _ := crypto.HashPassword(pwd, crypto.DefaultArgon2Params())
-	u, err := q.CreateUser(ctx, sqlc.CreateUserParams{EmailHash: security.EmailHash(email, cfg.SearchPepper), EmailEnc: enc.Ciphertext, EmailNonce: enc.Nonce, EmailKeyID: enc.KeyID, PasswordHash: hash, Status: "active"})
+	if strings.TrimSpace(cfg.FieldEncPreviousB64) != "" {
+		fe.PreviousKey, err = base64.StdEncoding.DecodeString(cfg.FieldEncPreviousB64)
+		if err != nil {
+			log.Fatalf("invalid FIELD_ENC_MASTER_KEY_PREVIOUS: %v", err)
+		}
+	}
+
+	enc, err := fe.EncryptString(email, "users:new:email")
+	if err != nil {
+		log.Fatal(err)
+	}
+	hash, err := crypto.HashPassword(pwd, crypto.DefaultArgon2Params())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	u, err := q.CreateUser(ctx, sqlc.CreateUserParams{
+		EmailHash:    security.EmailHash(email, cfg.SearchPepper),
+		EmailEnc:     enc.Ciphertext,
+		EmailNonce:   enc.Nonce,
+		EmailKeyID:   enc.KeyID,
+		PasswordHash: hash,
+		Status:       "active",
+	})
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -8,22 +8,23 @@ import (
 )
 
 func CORS(allowed []string) gin.HandlerFunc {
-	m := map[string]struct{}{}
-	for _, a := range allowed {
-		m[strings.TrimSpace(a)] = struct{}{}
+	allowlist := map[string]struct{}{}
+	for _, origin := range allowed {
+		trimmed := strings.TrimSpace(origin)
+		if trimmed != "" {
+			allowlist[trimmed] = struct{}{}
+		}
 	}
+
 	return func(c *gin.Context) {
-		origin := c.GetHeader("Origin")
+		origin := strings.TrimSpace(c.GetHeader("Origin"))
 		if origin != "" {
-			if _, ok := m[origin]; ok {
-				c.Header("Access-Control-Allow-Origin", origin)
-				c.Header("Vary", "Origin")
-				c.Header("Access-Control-Allow-Credentials", "true")
-				c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-Id, Idempotency-Key")
-				c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
-			} else if c.Request.Method == http.MethodOptions {
-				c.AbortWithStatus(http.StatusForbidden)
-				return
+			if _, ok := allowlist[origin]; ok {
+				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+				c.Writer.Header().Set("Vary", "Origin")
+				c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+				c.Writer.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
+				c.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-Id, Idempotency-Key")
 			}
 		}
 		if c.Request.Method == http.MethodOptions {

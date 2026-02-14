@@ -9,12 +9,12 @@ const RequestIDKey = "request_id"
 
 func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		id := c.GetHeader("X-Request-Id")
-		if id == "" {
-			id = uuid.NewString()
+		rid := c.GetHeader("X-Request-Id")
+		if rid == "" {
+			rid = uuid.NewString()
 		}
-		c.Set(RequestIDKey, id)
-		c.Header("X-Request-Id", id)
+		c.Set(RequestIDKey, rid)
+		c.Writer.Header().Set("X-Request-Id", rid)
 		c.Next()
 	}
 }
