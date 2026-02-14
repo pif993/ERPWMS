@@ -1,6 +1,6 @@
 {{ define "pages/autotest.html" }}
 <!doctype html>
-<html>
+<html lang="it">
   <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -10,10 +10,17 @@
     <h1>Autotest</h1>
     <p>Inserisci il token (<code>AUTOTEST_TOKEN</code>) e avvia la suite.</p>
 
-    <div style="display:flex; gap: 8px; align-items:center;">
-      <input id="tok" placeholder="Autotest token"
-             style="width: 420px; padding: 10px; border-radius: 8px; border: 1px solid #ccc;" />
-      <button id="run" style="padding: 10px 14px; border-radius: 8px; border: 1px solid #333; cursor: pointer;">
+    <div style="display:flex; gap: 8px; align-items:center; flex-wrap: wrap;">
+      <input
+        id="tok"
+        placeholder="Autotest token"
+        autocomplete="off"
+        style="width: 420px; max-width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc;"
+      />
+      <button
+        id="run"
+        style="padding: 10px 14px; border-radius: 8px; border: 1px solid #333; cursor: pointer;"
+      >
         Run
       </button>
     </div>
@@ -22,20 +29,32 @@
 
     <script>
       const out = document.getElementById('out');
-      document.getElementById('run').onclick = async () => {
+      const btn = document.getElementById('run');
+      const tok = document.getElementById('tok');
+
+      async function run() {
         out.textContent = 'Running...';
-        const tok = document.getElementById('tok').value;
+        btn.disabled = true;
 
         try {
           const r = await fetch('/api/autotest/run', {
             method: 'POST',
-            headers: {'X-Autotest-Token': tok}
+            headers: { 'X-Autotest-Token': tok.value || '' }
           });
-          out.textContent = await r.text();
+
+          const text = await r.text();
+          out.textContent = text || ('(empty response) HTTP ' + r.status);
         } catch (e) {
           out.textContent = String(e);
+        } finally {
+          btn.disabled = false;
         }
-      };
+      }
+
+      btn.addEventListener('click', run);
+      tok.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') run();
+      });
     </script>
   </body>
 </html>
