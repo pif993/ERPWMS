@@ -4,11 +4,13 @@ import "github.com/gin-gonic/gin"
 
 func SecurityHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Writer.Header().Set("X-Content-Type-Options", "nosniff")
-		c.Writer.Header().Set("X-Frame-Options", "DENY")
-		c.Writer.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		c.Writer.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-		c.Writer.Header().Set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
+		h := c.Writer.Header()
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		// Minimal SSR-safe CSP:
+		h.Set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
 		c.Next()
 	}
 }

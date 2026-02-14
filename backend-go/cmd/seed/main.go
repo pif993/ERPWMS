@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"log"
 	"os"
-	"strings"
 
 	"erpwms/backend-go/internal/common/config"
 	"erpwms/backend-go/internal/common/crypto"
@@ -38,21 +37,18 @@ func main() {
 		log.Fatal("ADMIN_EMAIL and ADMIN_PASSWORD required")
 	}
 
-	fe := crypto.FieldEncryption{CurrentID: cfg.FieldEncCurrentKeyID, PreviousID: cfg.FieldEncPrevKeyID}
-	if strings.TrimSpace(cfg.FieldEncCurrentB64) != "" {
-		fe.CurrentKey, err = base64.StdEncoding.DecodeString(cfg.FieldEncCurrentB64)
-		if err != nil {
-			log.Fatalf("invalid FIELD_ENC_MASTER_KEY_CURRENT: %v", err)
-		}
+	fe := crypto.FieldEncryption{
+		CurrentID:  cfg.FieldEncCurrentKeyID,
+		PreviousID: cfg.FieldEncPrevKeyID,
+	}
+	if cfg.FieldEncCurrentB64 != "" {
+		fe.CurrentKey, _ = base64.StdEncoding.DecodeString(cfg.FieldEncCurrentB64)
 	} else {
-		log.Print("WARNING: FIELD_ENC_MASTER_KEY_CURRENT empty, using dev-only static key")
+		// DEV-only fallback. In prod config.Load() already enforces keys.
 		fe.CurrentKey = []byte("12345678901234567890123456789012")
 	}
-	if strings.TrimSpace(cfg.FieldEncPreviousB64) != "" {
-		fe.PreviousKey, err = base64.StdEncoding.DecodeString(cfg.FieldEncPreviousB64)
-		if err != nil {
-			log.Fatalf("invalid FIELD_ENC_MASTER_KEY_PREVIOUS: %v", err)
-		}
+	if cfg.FieldEncPreviousB64 != "" {
+		fe.PreviousKey, _ = base64.StdEncoding.DecodeString(cfg.FieldEncPreviousB64)
 	}
 
 	enc, err := fe.EncryptString(email, "users:new:email")
