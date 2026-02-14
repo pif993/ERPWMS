@@ -31,9 +31,7 @@
             method: 'POST',
             headers: {'X-Autotest-Token': tok}
           });
-
-          const text = await r.text();
-          out.textContent = text;
+          out.textContent = await r.text();
         } catch (e) {
           out.textContent = String(e);
         }

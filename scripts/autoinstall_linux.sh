@@ -17,7 +17,6 @@ need_root() {
 
 detect_os() {
   if [[ -f /etc/os-release ]]; then
-    # shellcheck disable=SC1091
     . /etc/os-release
     echo "${ID:-unknown}"
   else
@@ -109,10 +108,14 @@ main() {
   need_root
 
   case "$(detect_os)" in
-    ubuntu|debian) install_docker_debian ;;
-    rhel|centos|rocky|almalinux|fedora) install_docker_rhel ;;
+    ubuntu|debian)
+      install_docker_debian
+      ;;
+    rhel|centos|rocky|almalinux|fedora)
+      install_docker_rhel
+      ;;
     *)
-      echo "Unsupported OS (supported: ubuntu/debian/rhel/centos/rocky/almalinux/fedora)"
+      echo "Unsupported OS"
       exit 1
       ;;
   esac
