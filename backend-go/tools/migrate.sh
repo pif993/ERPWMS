@@ -7,5 +7,5 @@ if [[ -z "${DB_URL:-}" ]]; then
 fi
 
 echo "[migrator] running goose up..."
-goose -dir internal/db/migrations postgres "$DB_URL" up
+/go/bin/goose -dir internal/db/migrations postgres "$DB_URL" up
 echo "[migrator] done."

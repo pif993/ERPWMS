@@ -6,6 +6,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_SUPER_USER}
       POSTGRES_PASSWORD: ${POSTGRES_SUPER_PASSWORD}
+      APP_DB_USER: ${APP_DB_USER}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_SUPER_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -32,11 +34,6 @@ services:
     command: ["-c", "/etc/nats/nats.conf"]
     volumes:
       - ./nats/nats.conf:/etc/nats/nats.conf:ro
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8222/healthz || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
     networks: [erp_net]
 
   tools:
@@ -76,12 +73,7 @@ services:
       redis:
         condition: service_healthy
       nats:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
+        condition: service_started
     ports: ["8081:8080"]
     networks: [erp_net]
 
@@ -95,7 +87,7 @@ services:
       postgres:
         condition: service_healthy
       nats:
-        condition: service_healthy
+        condition: service_started
     networks: [erp_net]
 
   python-analytics:
@@ -103,11 +95,6 @@ services:
       context: ../python-analytics
       dockerfile: Dockerfile
     env_file: [./.env]
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/health || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
     networks: [erp_net]
 
   caddy:

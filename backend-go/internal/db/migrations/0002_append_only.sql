@@ -1,11 +1,13 @@
 -- +goose Up
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION forbid_update_delete()
 RETURNS trigger AS $$
 BEGIN
   RAISE EXCEPTION 'append-only table: %', TG_TABLE_NAME;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 -- audit_log immutable
 DROP TRIGGER IF EXISTS trg_audit_log_no_update ON audit_log;
@@ -19,7 +21,7 @@ CREATE TRIGGER trg_stock_ledger_no_update
 BEFORE UPDATE OR DELETE ON stock_ledger
 FOR EACH ROW EXECUTE FUNCTION forbid_update_delete();
 
--- outbox_events: only delivery state can change
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION outbox_events_only_state_mutable()
 RETURNS trigger AS $$
 BEGIN
@@ -35,6 +37,7 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 DROP TRIGGER IF EXISTS trg_outbox_events_state_only ON outbox_events;
 CREATE TRIGGER trg_outbox_events_state_only

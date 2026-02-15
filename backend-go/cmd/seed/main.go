@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"github.com/jackc/pgconn"
 	"context"
 	"encoding/base64"
 	"log"
@@ -73,4 +75,17 @@ func main() {
 	}
 	_, _ = db.Exec(ctx, "INSERT INTO user_roles(user_id, role_id) SELECT $1, id FROM roles WHERE name='Admin' ON CONFLICT DO NOTHING", u.ID)
 	log.Printf("seeded admin user %s", u.ID)
+}
+
+
+
+func isUniqueViolationUsersEmailHash(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		// 23505 = unique_violation
+		if pgErr.Code == "23505" && (pgErr.ConstraintName == "users_email_hash_key") {
+			return true
+		}
+	}
+	return false
 }

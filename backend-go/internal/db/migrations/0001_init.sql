@@ -1,11 +1,12 @@
 -- +goose Up
+
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS citext;
 
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email_hash TEXT UNIQUE NOT NULL,
-  email_enc TEXT NOT NULL,
+  email_enc  TEXT NOT NULL,
   email_nonce TEXT NOT NULL,
   email_key_id TEXT NOT NULL,
   password_hash TEXT NOT NULL,
@@ -137,4 +138,5 @@ CREATE INDEX idx_outbox_pending ON outbox_events(sent_at, created_at);
 CREATE INDEX idx_refresh_user_exp ON refresh_sessions(user_id, expires_at);
 
 -- +goose Down
-DROP TABLE IF EXISTS idempotency_keys, outbox_events, stock_balance, stock_ledger, items, locations, warehouses, audit_log, refresh_sessions, user_roles, role_permissions, permissions, roles, users CASCADE;
+DROP TABLE IF EXISTS idempotency_keys, outbox_events, stock_balance, stock_ledger, items, locations, warehouses,
+  audit_log, refresh_sessions, user_roles, role_permissions, permissions, roles, users CASCADE;

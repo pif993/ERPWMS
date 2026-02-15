@@ -156,3 +156,11 @@ make fmt          # gofmt + ruff format
 
 ## License
 MIT — vedi `LICENSE`.
+
+## Nota importante (Postgres functions / Goose)
+Le migrations che contengono funzioni PL/pgSQL (`$$ ... $$`) devono:
+- avere newline reali (non tutto su una riga)
+- usare `-- +goose StatementBegin` / `-- +goose StatementEnd`
+
+Altrimenti Goose può spezzare la query su `;` e generare errori tipo:
+`unterminated dollar-quoted string`.
