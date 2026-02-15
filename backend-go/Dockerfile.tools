@@ -1,4 +1,5 @@
 FROM golang:1.23-alpine
+
 WORKDIR /app
 
 RUN apk add --no-cache bash ca-certificates curl
@@ -8,13 +9,13 @@ RUN go mod download
 
 COPY . .
 
-RUN go install github.com/pressly/goose/v3/cmd/goose@latest
+# tools: goose + sqlc
+RUN go install github.com/pressly/goose/v3/cmd/goose@latest && \
+    go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+
 RUN CGO_ENABLED=0 go build -o /app/seed ./cmd/seed
 
 RUN mkdir -p /app/tools
 COPY tools/migrate.sh /app/tools/migrate.sh
 COPY tools/seed.sh /app/tools/seed.sh
 RUN chmod +x /app/tools/*.sh
-
-ENV PATH="/go/bin:${PATH}"
-ENTRYPOINT ["/bin/bash","-lc"]
