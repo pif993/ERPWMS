@@ -66,7 +66,13 @@ func main() {
 		middleware.RateLimit(cfg.RateLimitAPI),
 	)
 
-	r.GET("/health", func(c *gin.Context) {
+	
+	// === Admin Portal (bootstrap) ===
+	ap := adminhttp.AdminPortal{DB: db}
+	r.GET("/admin/users", ap.UsersPage)
+	r.POST("/admin/users/role", ap.SetUserRole)
+
+r.GET("/health", func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 		defer cancel()
 		dberr := db.Ping(ctx)
@@ -86,9 +92,6 @@ func main() {
 
 	r.GET("/stock", func(c *gin.Context) {
 		rows, _ := q.ListStockBalances(c.Request.Context(), sqlc.ListStockBalancesParams{
-			Column1: c.Query("q"),
-			Column2: c.Query("warehouse"),
-			Column3: c.Query("location"),
 			Limit:   100,
 			Offset:  0,
 		})

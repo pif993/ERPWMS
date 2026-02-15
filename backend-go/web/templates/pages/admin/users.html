@@ -1,0 +1,17 @@
+{{ define "pages/admin/users.html" }}{{ template "layout/base" . }}{{ end }}
+{{ define "content" }}
+<h2>Admin Users</h2>
+<table border="1"><tr><th>ID</th><th>Status</th><th>Role</th></tr>
+{{ range .Users }}
+<tr><td>{{ .ID }}</td><td>{{ .Status }}</td><td>
+<form method="POST" action="/admin/users/role">
+<input type="hidden" name="user_id" value="{{ .ID }}">
+<select name="role_id">
+{{ range $.Roles }}<option value="{{ .ID }}">{{ .Name }}</option>{{ end }}
+</select>
+<button type="submit">Set</button>
+</form>
+</td></tr>
+{{ end }}
+</table>
+{{ end }}

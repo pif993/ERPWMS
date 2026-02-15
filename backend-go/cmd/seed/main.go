@@ -1,6 +1,7 @@
 package main
 
 import (
+	"golang.org/x/crypto/bcrypt"
 	"context"
 	"encoding/base64"
 	"errors"
@@ -122,7 +123,8 @@ func main() {
 		ON CONFLICT DO NOTHING
 	`, u.ID)
 
-	fmt.Println("[seed] done.")
+	hp,_:=bcrypt.GenerateFromPassword([]byte(password),bcrypt.DefaultCost);_ = q.AuthUpsertCredentials(ctx, sqlc.AuthUpsertCredentialsParams{UserID:userID,Email:email,PasswordHash:string(hp)});
+fmt.Println("[seed] done.")
 }
 
 func isUniqueViolationUsersEmailHash(err error) bool {
@@ -132,3 +134,6 @@ func isUniqueViolationUsersEmailHash(err error) bool {
 	}
 	return false
 }
+
+
+func getenv(k,d string)string{v:=os.Getenv(k);if v==""{return d};return v}
