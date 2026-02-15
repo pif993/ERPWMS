@@ -69,7 +69,9 @@ func main() {
 	
 	// === Admin Portal (bootstrap) ===
 	ap := adminhttp.AdminPortal{DB: db}
-	r.GET("/admin/users", ap.UsersPage)
+	
+	ap.RegisterRoutes(r)
+r.GET("/admin/users", ap.UsersPage)
 	r.POST("/admin/users/role", ap.SetUserRole)
 
 r.GET("/health", func(c *gin.Context) {
